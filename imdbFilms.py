@@ -12,7 +12,7 @@
 # as much. This is emphasized by the fact that many films with high IMDb ratings had far lower Metascores, while the
 # opposite never occured in the same extreme
 #
-# My topImdb.csv can be found here: https://knuth.luther.edu/~reesau01/topImdb.csv
+# My topImdb.csv can be found here: http://knuth.luther.edu/~reesau01/topIMDb.csv
 
 import requests
 import pandas as pd
