@@ -12,8 +12,7 @@
 # as much. This is emphasized by the fact that many films with high IMDb ratings had far lower Metascores, while the
 # opposite never occured in the same extreme
 #
-# My topImdb.csv can be found here: https://knuth.luther.edu:8443/user/reesau01/tree/public_html
-# This link will open automatically if the program is run without topImdb.csv in the current working directory
+# My topImdb.csv can be found here: https://knuth.luther.edu/~reesau01/topImdb.csv
 
 import requests
 import pandas as pd
@@ -79,20 +78,39 @@ def normalizeRevenue(movieData):
     for i, movie in movieData.iterrows():
         runs += 1
         box = movie["BoxOffice"]
-        if box == "N/A":
+        if box == "N/A" or box == np.nan:
             box = 0
         box = str(box).replace(",", "")
         box = str(box).replace("$", "")
         year = movie["Year"]
-        page = s.get("https://data.bls.gov/cgi-bin/cpicalc.pl?cost1={}&year1={}01&year2=201801".format(box, year))
-        tree = (html.fromstring(page.content))
-        newPrice = set(tree.xpath('//span[@id="answer"]//text()'))
-        if len(newPrice) == 0:
+        try:
+            box = int(box)
+        except:
+            box = 0
+        if box > 9999999:
+            maxVals = box / 9999999
+            subBox = [9999999] * int(maxVals)
+            decimal = maxVals - int(maxVals)
+            subBox.append(decimal * 9999999)
             newPrice = 0
-        else:
-            newPrice = newPrice.pop()
-            newPrice = str(newPrice).replace(",", "")
-            newPrice = str(newPrice).replace("$", "")
+            for num in subBox:
+                page = s.get("https://data.bls.gov/cgi-bin/cpicalc.pl?cost1={}&year1={}01&year2=201801".format(num, year))
+                tree = (html.fromstring(page.content))
+                thisPrice = set(tree.xpath('//span[@id="answer"]//text()'))
+                thisPrice = thisPrice.pop()
+                thisPrice = str(thisPrice).replace(",", "")
+                thisPrice = str(thisPrice).replace("$", "")                
+                newPrice += float(thisPrice)
+        else:        
+            page = s.get("https://data.bls.gov/cgi-bin/cpicalc.pl?cost1={}&year1={}01&year2=201801".format(box, year))
+            tree = (html.fromstring(page.content))
+            newPrice = set(tree.xpath('//span[@id="answer"]//text()'))
+            if len(newPrice) == 0:
+                newPrice = 0
+            else:
+                newPrice = newPrice.pop()
+                newPrice = str(newPrice).replace(",", "")
+                newPrice = str(newPrice).replace("$", "")
         movieData.at[i, "BoxOffice"] = newPrice
         if runs % 10 == 0:
             print("{}% complete".format(int(runs / len(movieData) * 100)))
@@ -116,18 +134,15 @@ def writeCsv(movieData):
 
 def checkFileExists():
     exists = os.path.isfile("topIMDb.csv")
-    if not exists:
-        print("Please download topIMDb.csv")
-        webbrowser.open("https://knuth.luther.edu:8443/user/reesau01/tree/public_html", new=2, autoraise=True)        
-        print("If no linked opened, you can download the file HERE: https://knuth.luther.edu:8443/user/reesau01/tree/public_html")
-        print("Or you can create the file using this python program. Press enter to generate the file yourself,\n any other key to terminate the program and re-run with the file in your directory")
-        remain = input()
-        if remain == "":
-            return True
-        return False
-    else:
+    exists = False
+    if exists:
         return "topIMDb.csv"
-    
+    print("topIMDb.csv not found, press enter to access file from knuth, press any other key to remake the file to scrape the latest information")
+    remain = input()
+    if remain == "":
+        return "http://knuth.luther.edu/~reesau01/topIMDb.csv"
+    return True
+
 def analyzeData(file):
     movieData = pd.read_csv(file)
     movieData['imdbVotes'].replace(regex=True,inplace=True,to_replace=',',value='')
@@ -165,10 +180,7 @@ def main():
         movieData = normalizeRevenue(movieData)
         movieData = cleanData(movieData)
         writeCsv(movieData)
-        newFile = "topImdb.csv"
         print("Please run this program again")
-        return
-    elif newFile == False:
         return
     analyzeData(newFile)
 
